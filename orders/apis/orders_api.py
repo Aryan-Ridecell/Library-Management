@@ -1,6 +1,6 @@
 import datetime
 
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, ExpressionWrapper, IntegerField, F, Func
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -37,9 +37,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     def overdue_books(self, request, pk=None):
         customer = get_object_or_404(UserModel, pk=pk)
         today = datetime.date.today()
-        # can be done in a much better way with annotate and fetching all the related objects here only.
-        orders = Order.objects.prefetch_related(
-            Prefetch('order_items')).filter(customer=customer, due_date__lt=today)
+        orders = Order.objects.prefetch_related('order_items').filter(due_date__lt=today,customer=customer).annotate(
+            fine=ExpressionWrapper(F('due_date') - today, output_field=IntegerField())
+        ).annotate(fine=F('fine') * 100)
         due_orders = []
         for o in orders:
             due_order = {"id": o.id, "due_amount": get_due_amount((today - o.due_date).days),
