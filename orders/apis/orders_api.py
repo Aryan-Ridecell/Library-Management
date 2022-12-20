@@ -37,12 +37,12 @@ class OrderViewSet(viewsets.ModelViewSet):
     def overdue_books(self, request, pk=None):
         customer = get_object_or_404(UserModel, pk=pk)
         today = datetime.date.today()
-        orders = Order.objects.prefetch_related('order_items').filter(due_date__lt=today,customer=customer).annotate(
+        orders = Order.objects.prefetch_related('order_items').filter(due_date__lt=today,customer=customer,returned = False).annotate(
             fine=ExpressionWrapper(F('due_date') - today, output_field=IntegerField())
-        ).annotate(fine=F('fine') * 100)
+        ).annotate(fine=F('fine'))
         due_orders = []
         for o in orders:
-            due_order = {"id": o.id, "due_amount": get_due_amount((today - o.due_date).days),
+            due_order = {"id": o.id,"issued_date": o.ordered_at, "due_date": o.due_date, "due_amount": get_due_amount(o.fine),
                          "books": [b.name for b in o.order_items.all()],
                          "mode_of_payment": o.mode_of_payment}
             due_orders.append(due_order)
